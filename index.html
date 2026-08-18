@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brady Menu</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f5f7;
+      color: #172033;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .app.service-mode {
+      grid-template-columns: 220px 190px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      padding: 20px 14px;
+      background: #172033;
+      box-shadow: 4px 0 18px rgb(15 23 42 / 12%);
+    }
+
+    .sidebar label {
+      display: block;
+      margin-bottom: 9px;
+      color: #dbe4f0;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    #page-list {
+      width: 100%;
+      min-height: 130px;
+      padding: 6px;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      background: #fff8c5;
+      color: #172033;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    #page-list option {
+      padding: 10px 8px;
+    }
+
+    #page-list:focus-visible {
+      outline: 3px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .slide-sidebar {
+      display: none;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 14px 10px;
+      background: #e2e8f0;
+      border-right: 1px solid #cbd5e1;
+    }
+
+    .service-mode .slide-sidebar {
+      display: block;
+    }
+
+    .slide-sidebar h2 {
+      margin: 0 4px 10px;
+      font-size: 0.82rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .slide-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .slide-button {
+      display: block;
+      width: 100%;
+      padding: 5px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: #fff8c5;
+      color: #172033;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+      box-shadow: 0 2px 7px rgb(15 23 42 / 10%);
+    }
+
+    .slide-button:hover {
+      border-color: #93c5fd;
+    }
+
+    .slide-button.active {
+      border-color: #2563eb;
+    }
+
+    .slide-button:focus-visible {
+      outline: 3px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    .slide-number {
+      display: block;
+      padding: 10px 6px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .content {
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+      min-width: 0;
+    }
+
+    #page-frame {
+      width: min(100%, 1200px);
+      min-height: calc(100vh - 40px);
+      border: 0;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 10px 30px rgb(15 23 42 / 12%);
+    }
+
+    @media (max-width: 700px) {
+      .app {
+        grid-template-columns: 150px minmax(0, 1fr);
+      }
+
+      .app.service-mode {
+        grid-template-columns: 150px 125px minmax(320px, 1fr);
+        overflow-x: auto;
+      }
+
+      .sidebar,
+      .content {
+        padding: 10px;
+      }
+
+      .slide-sidebar {
+        padding: 10px 6px;
+      }
+
+      #page-frame {
+        min-height: calc(100vh - 20px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="sidebar">
+      <label for="page-list">Menu</label>
+      <select id="page-list" size="6" aria-label="Choose a page">
+        <option value="https://esemmelman.github.io/bradytorah/" selected>Torah Portion</option>
+        <option value="https://docs.google.com/presentation/d/1oC5QAqCPf49T3vI0fOJXYMrkAbRCRafq4r0UDO-VxZI/embed?slide=id.p">Service</option>
+        <option value="https://esemmelman.github.io/Elohai-Neshama/">Elohai</option>
+        <option value="https://us02web.zoom.us/j/82018881816?pwd=UNCzhuayIsjf27TkmaJnUDqj3M25bA.1">Zoom Link</option>
+      </select>
+    </aside>
+
+    <aside id="slide-sidebar" class="slide-sidebar" aria-label="Service slides">
+      <h2>Service slides</h2>
+      <div id="slide-list" class="slide-list"></div>
+    </aside>
+
+    <section class="content" aria-label="Selected page">
+      <iframe
+        id="page-frame"
+        title="Torah Portion"
+        src="https://esemmelman.github.io/bradytorah/"
+        loading="eager"
+      ></iframe>
+    </section>
+  </main>
+
+  <script>
+    const presentationId = "1oC5QAqCPf49T3vI0fOJXYMrkAbRCRafq4r0UDO-VxZI";
+    const serviceSlides = [
+      { id: "p", page: "289", title: "Tallit" },
+      { id: "g3eb74f277b9_0_1", page: "290", title: "Mah Tovu" },
+      { id: "g3eb74f277b9_0_9", page: "292", title: "Elohai" },
+      { id: "g3eb74f277b9_0_22", page: "296", title: "Laasok" },
+      { id: "g3eb74f277b9_0_32", page: "297", title: "Hamlamed" },
+      { id: "g3eb74f277b9_0_41", page: "298", title: "Limitless" },
+      { id: "g3eb74f277b9_0_48", page: "313", title: "Barchu" },
+      { id: "g3eb74f277b9_0_61", page: "313", title: "Yotzer Ohr" },
+      { id: "g3eb74f277b9_0_69", page: "314", title: "The World" },
+      { id: "g3eb7772bc9b_0_0", page: "317", title: "O God" },
+      { id: "g3eb7772bc9b_0_7", page: "318", title: "Shema" },
+      { id: "g3eb7772bc9b_0_16", page: "319", title: "V'ahavta" },
+      { id: "g3eb7772bc9b_0_25", page: "320", title: "Adonai" },
+      { id: "g3eb7772bc9b_0_32", page: "322", title: "Mi Chamocha" },
+      { id: "g3eb7772bc9b_0_40", page: "323", title: "Amidah" },
+      { id: "g3eb7772bc9b_0_50", page: "325", title: "G'vurah" },
+      { id: "g3eb7772bc9b_0_59", page: "326", title: "Nekadesh" },
+      { id: "g3e705dc12d8_0_0", page: "329", title: "Yismechu" },
+      { id: "g3e705dc12d8_0_9", page: "329", title: "The Meaning" },
+      { id: "g3e705dc12d8_0_18", page: "330", title: "On this" },
+      { id: "g3e705dc12d8_0_25", page: "332", title: "Modim" },
+      { id: "g3e705dc12d8_0_34", page: "333", title: "Modim" },
+      { id: "g3e705dc12d8_0_44", page: "334", title: "Sim Shalom" },
+      { id: "g3e740b7777b_0_0", page: "335", title: "Receive Torah" }
+    ];
+    const app = document.querySelector(".app");
+    const pageList = document.querySelector("#page-list");
+    const pageFrame = document.querySelector("#page-frame");
+    const slideList = document.querySelector("#slide-list");
+
+    function serviceUrl(slideId) {
+      return `https://docs.google.com/presentation/d/${presentationId}/embed?slide=id.${slideId}`;
+    }
+
+    function selectSlide(button, slide) {
+      document.querySelectorAll(".slide-button").forEach((item) => {
+        item.classList.toggle("active", item === button);
+        item.setAttribute("aria-current", item === button ? "true" : "false");
+      });
+      pageFrame.src = serviceUrl(slide.id);
+      pageFrame.title = slide.title
+        ? `Service — ${slide.title}`
+        : slide.page
+          ? `Service — page ${slide.page}`
+          : "Service — final slide";
+    }
+
+    serviceSlides.forEach((slide, index) => {
+      const button = document.createElement("button");
+      const slideNumber = index + 1;
+      const slideLabel = slide.title || (slide.page ? `Page ${slide.page}` : "Final slide");
+      button.type = "button";
+      button.className = "slide-button";
+      button.dataset.slideNumber = slideNumber;
+      button.innerHTML = `
+        <span class="slide-number">${slideLabel}</span>
+      `;
+      button.addEventListener("click", () => selectSlide(button, slide));
+      slideList.append(button);
+    });
+
+    pageList.addEventListener("change", () => {
+      const selected = pageList.options[pageList.selectedIndex];
+      const isService = selected.text === "Service";
+      app.classList.toggle("service-mode", isService);
+
+      if (isService) {
+        const firstSlide = document.querySelector(".slide-button");
+        selectSlide(firstSlide, serviceSlides[0]);
+      } else {
+        pageFrame.src = selected.value;
+        pageFrame.title = selected.text;
+      }
+    });
+  </script>
+</body>
+</html>
