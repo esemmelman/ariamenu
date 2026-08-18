@@ -145,6 +145,67 @@
       box-shadow: 0 10px 30px rgb(15 23 42 / 12%);
     }
 
+    .homework-panel {
+      width: min(100%, 900px);
+      min-height: calc(100vh - 40px);
+      overflow: hidden;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 10px 30px rgb(15 23 42 / 12%);
+    }
+
+    .homework-panel[hidden] {
+      display: none;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 10px;
+      border-bottom: 1px solid #cbd5e1;
+      background: #f8fafc;
+    }
+
+    .editor-toolbar button {
+      min-width: 38px;
+      padding: 7px 10px;
+      border: 1px solid #94a3b8;
+      border-radius: 6px;
+      background: #fff8c5;
+      color: #172033;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+    }
+
+    .editor-toolbar button:hover {
+      background: #fef08a;
+    }
+
+    .sync-status {
+      margin-left: auto;
+      color: #475569;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    #homework-editor {
+      min-height: calc(100vh - 102px);
+      padding: 28px;
+      outline: none;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.15rem;
+      line-height: 1.65;
+    }
+
+    #homework-editor:empty::before {
+      color: #94a3b8;
+      content: "Enter homework here…";
+      pointer-events: none;
+    }
+
     @media (max-width: 700px) {
       .app {
         grid-template-columns: 150px minmax(0, 1fr);
@@ -179,6 +240,7 @@
         <option value="https://docs.google.com/presentation/d/1oC5QAqCPf49T3vI0fOJXYMrkAbRCRafq4r0UDO-VxZI/embed?slide=id.p">Service</option>
         <option value="https://esemmelman.github.io/Elohai-Neshama/">Elohai</option>
         <option value="https://us02web.zoom.us/j/82018881816?pwd=UNCzhuayIsjf27TkmaJnUDqj3M25bA.1">Zoom Link</option>
+        <option value="homework">Homework</option>
       </select>
     </aside>
 
@@ -194,11 +256,32 @@
         src="https://esemmelman.github.io/bradytorah/"
         loading="eager"
       ></iframe>
+
+      <div id="homework-panel" class="homework-panel" hidden>
+        <div class="editor-toolbar" role="toolbar" aria-label="Homework formatting">
+          <button type="button" data-command="bold" aria-label="Bold"><strong>B</strong></button>
+          <button type="button" data-command="italic" aria-label="Italic"><em>I</em></button>
+          <button type="button" data-command="underline" aria-label="Underline"><u>U</u></button>
+          <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">• List</button>
+          <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1. List</button>
+          <span id="sync-status" class="sync-status" aria-live="polite">Loading…</span>
+        </div>
+        <div
+          id="homework-editor"
+          contenteditable="true"
+          role="textbox"
+          aria-label="Homework"
+          aria-multiline="true"
+        ></div>
+      </div>
     </section>
   </main>
 
   <script>
     const presentationId = "1oC5QAqCPf49T3vI0fOJXYMrkAbRCRafq4r0UDO-VxZI";
+    const supabaseUrl = "https://fgomaujsdblpzxhnnqrg.supabase.co";
+    const supabaseKey = "sb_publishable_JOUqLZDnfGu_yCa6k6FVDQ_AYwpr72i";
+    const homeworkEndpoint = `${supabaseUrl}/rest/v1/bradymenu_homework_documents?document_key=eq.homework`;
     const serviceSlides = [
       { id: "p", page: "289", title: "Tallit" },
       { id: "g3eb74f277b9_0_1", page: "290", title: "Mah Tovu" },
@@ -229,6 +312,83 @@
     const pageList = document.querySelector("#page-list");
     const pageFrame = document.querySelector("#page-frame");
     const slideList = document.querySelector("#slide-list");
+    const homeworkPanel = document.querySelector("#homework-panel");
+    const homeworkEditor = document.querySelector("#homework-editor");
+    const syncStatus = document.querySelector("#sync-status");
+    let homeworkLoaded = false;
+    let homeworkDirty = false;
+    let homeworkUpdatedAt = "";
+    let saveTimer;
+
+    const supabaseHeaders = {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      "Content-Type": "application/json"
+    };
+
+    async function loadHomework() {
+      try {
+        const response = await fetch(`${homeworkEndpoint}&select=content_html,updated_at`, {
+          headers: supabaseHeaders,
+          cache: "no-store"
+        });
+        if (!response.ok) throw new Error(`Load failed (${response.status})`);
+        const [documentRow] = await response.json();
+        if (!homeworkDirty && documentRow && documentRow.updated_at !== homeworkUpdatedAt) {
+          homeworkEditor.innerHTML = documentRow.content_html;
+          homeworkUpdatedAt = documentRow.updated_at;
+        }
+        homeworkLoaded = true;
+        syncStatus.textContent = "Synced";
+      } catch (error) {
+        syncStatus.textContent = "Unable to sync";
+        console.error(error);
+      }
+    }
+
+    async function saveHomework() {
+      if (!homeworkDirty) return;
+      syncStatus.textContent = "Saving…";
+      try {
+        const response = await fetch(homeworkEndpoint, {
+          method: "PATCH",
+          headers: { ...supabaseHeaders, Prefer: "return=representation" },
+          body: JSON.stringify({
+            content_html: homeworkEditor.innerHTML,
+            updated_at: new Date().toISOString()
+          })
+        });
+        if (!response.ok) throw new Error(`Save failed (${response.status})`);
+        const [documentRow] = await response.json();
+        homeworkUpdatedAt = documentRow.updated_at;
+        homeworkDirty = false;
+        syncStatus.textContent = "Saved and synced";
+      } catch (error) {
+        syncStatus.textContent = "Save failed — retrying";
+        console.error(error);
+        saveTimer = setTimeout(saveHomework, 3000);
+      }
+    }
+
+    homeworkEditor.addEventListener("input", () => {
+      homeworkDirty = true;
+      syncStatus.textContent = "Unsaved changes";
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveHomework, 800);
+    });
+
+    document.querySelectorAll("[data-command]").forEach((button) => {
+      button.addEventListener("mousedown", (event) => event.preventDefault());
+      button.addEventListener("click", () => {
+        homeworkEditor.focus();
+        document.execCommand(button.dataset.command, false);
+        homeworkEditor.dispatchEvent(new Event("input"));
+      });
+    });
+
+    setInterval(() => {
+      if (!homeworkPanel.hidden && homeworkLoaded && !homeworkDirty) loadHomework();
+    }, 5000);
 
     function serviceUrl(slideId) {
       return `https://docs.google.com/presentation/d/${presentationId}/embed?slide=id.${slideId}`;
@@ -264,11 +424,17 @@
     pageList.addEventListener("change", () => {
       const selected = pageList.options[pageList.selectedIndex];
       const isService = selected.text === "Service";
+      const isHomework = selected.value === "homework";
       app.classList.toggle("service-mode", isService);
+      pageFrame.hidden = isHomework;
+      homeworkPanel.hidden = !isHomework;
 
       if (isService) {
         const firstSlide = document.querySelector(".slide-button");
         selectSlide(firstSlide, serviceSlides[0]);
+      } else if (isHomework) {
+        loadHomework();
+        homeworkEditor.focus();
       } else {
         pageFrame.src = selected.value;
         pageFrame.title = selected.text;
