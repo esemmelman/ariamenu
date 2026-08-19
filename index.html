@@ -317,7 +317,11 @@
 
       <article id="torah-panel" class="torah-panel" aria-labelledby="torah-title" hidden>
         <h1 id="torah-title">Miketz</h1>
-        <p class="torah-reference">Genesis 41:1–44:17 · World English Bible</p>
+        <p class="torah-reference">
+          Genesis 41:1–44:17 ·
+          <a href="https://www.sefaria.org/Genesis.41?lang=en" target="_blank" rel="noopener">Revised JPS, 2023 via Sefaria</a>
+          · CC BY-NC
+        </p>
         <div id="torah-text" aria-live="polite">
           <p class="torah-status">Loading Torah portion…</p>
         </div>
@@ -469,21 +473,26 @@
       torahText.innerHTML = '<p class="torah-status">Loading Torah portion…</p>';
       try {
         const chapterNumbers = [41, 42, 43, 44];
+        const jpsVersion = encodeURIComponent("english|THE JPS TANAKH: Gender-Sensitive Edition");
         const responses = await Promise.all(chapterNumbers.map((chapter) =>
-          fetch(`https://bible-api.com/Genesis%20${chapter}?translation=web`)
+          fetch(`https://www.sefaria.org/api/v3/texts/Genesis%20${chapter}?version=${jpsVersion}&return_format=text_only`)
         ));
         if (responses.some((response) => !response.ok)) throw new Error("Unable to load one or more chapters");
 
         const chapters = await Promise.all(responses.map((response) => response.json()));
         torahText.replaceChildren();
         chapters.forEach((chapterData) => {
-          const chapterNumber = chapterData.verses[0].chapter;
+          const chapterNumber = Number(chapterData.sections[0]);
+          const verses = chapterData.versions[0]?.text;
+          if (!Array.isArray(verses)) throw new Error(`Revised JPS text unavailable for Genesis ${chapterNumber}`);
+
           const heading = document.createElement("h2");
           heading.className = "torah-chapter";
           heading.textContent = `Genesis ${chapterNumber}`;
           torahText.append(heading);
 
-          chapterData.verses
+          verses
+            .map((text, index) => ({ verse: index + 1, text }))
             .filter((verse) => chapterNumber !== 44 || verse.verse <= 17)
             .forEach((verse) => {
               const paragraph = document.createElement("p");
