@@ -158,6 +158,63 @@
       display: none;
     }
 
+    .torah-panel {
+      width: min(100%, 900px);
+      min-height: calc(100vh - 40px);
+      padding: 32px clamp(24px, 5vw, 60px);
+      overflow-y: auto;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 10px 30px rgb(15 23 42 / 12%);
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.65;
+    }
+
+    .torah-panel[hidden] {
+      display: none;
+    }
+
+    .torah-panel h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+    }
+
+    .torah-reference {
+      margin: 4px 0 28px;
+      color: #64748b;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .torah-chapter {
+      margin: 32px 0 12px;
+      font-size: 1.4rem;
+    }
+
+    .torah-verse {
+      margin: 0 0 0.8em;
+      font-size: 1.1rem;
+    }
+
+    .verse-number {
+      margin-right: 0.35em;
+      color: #475569;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.72em;
+      font-weight: 700;
+      vertical-align: super;
+    }
+
+    .torah-verse.highlighted {
+      padding: 3px 7px;
+      border-radius: 4px;
+      background: #fff176;
+    }
+
+    .torah-status {
+      color: #475569;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+
     .editor-toolbar {
       display: flex;
       flex-wrap: wrap;
@@ -236,9 +293,10 @@
     <aside class="sidebar">
       <label for="page-list">Menu</label>
       <select id="page-list" size="6" aria-label="Choose a page">
-        <option value="https://esemmelman.github.io/bradytorah/" selected>Torah Portion</option>
+        <option value="https://esemmelman.github.io/bradytorah/" selected>Torah Reading</option>
         <option value="https://docs.google.com/presentation/d/1oC5QAqCPf49T3vI0fOJXYMrkAbRCRafq4r0UDO-VxZI/embed?slide=id.p">Service</option>
         <option value="https://esemmelman.github.io/Elohai-Neshama/">Elohai</option>
+        <option value="torah-portion">Torah Portion</option>
         <option value="https://us02web.zoom.us/j/82018881816?pwd=UNCzhuayIsjf27TkmaJnUDqj3M25bA.1">Zoom Link</option>
         <option value="homework">Homework</option>
       </select>
@@ -252,10 +310,18 @@
     <section class="content" aria-label="Selected page">
       <iframe
         id="page-frame"
-        title="Torah Portion"
+        title="Torah Reading"
         src="https://esemmelman.github.io/bradytorah/"
         loading="eager"
       ></iframe>
+
+      <article id="torah-panel" class="torah-panel" aria-labelledby="torah-title" hidden>
+        <h1 id="torah-title">Miketz</h1>
+        <p class="torah-reference">Genesis 41:1–44:17 · King James Version</p>
+        <div id="torah-text" aria-live="polite">
+          <p class="torah-status">Loading Torah portion…</p>
+        </div>
+      </article>
 
       <div id="homework-panel" class="homework-panel" hidden>
         <div class="editor-toolbar" role="toolbar" aria-label="Homework formatting">
@@ -312,10 +378,13 @@
     const pageList = document.querySelector("#page-list");
     const pageFrame = document.querySelector("#page-frame");
     const slideList = document.querySelector("#slide-list");
+    const torahPanel = document.querySelector("#torah-panel");
+    const torahText = document.querySelector("#torah-text");
     const homeworkPanel = document.querySelector("#homework-panel");
     const homeworkEditor = document.querySelector("#homework-editor");
     const syncStatus = document.querySelector("#sync-status");
     let homeworkLoaded = false;
+    let torahLoaded = false;
     let homeworkDirty = false;
     let homeworkUpdatedAt = "";
     let saveTimer;
@@ -394,6 +463,49 @@
       return `https://docs.google.com/presentation/d/${presentationId}/embed?slide=id.${slideId}`;
     }
 
+    async function loadTorahPortion() {
+      if (torahLoaded) return;
+
+      torahText.innerHTML = '<p class="torah-status">Loading Torah portion…</p>';
+      try {
+        const chapterNumbers = [41, 42, 43, 44];
+        const responses = await Promise.all(chapterNumbers.map((chapter) =>
+          fetch(`https://dailybible.ca/api/Genesis%20${chapter}?translation=kjv`)
+        ));
+        if (responses.some((response) => !response.ok)) throw new Error("Unable to load one or more chapters");
+
+        const chapters = await Promise.all(responses.map((response) => response.json()));
+        torahText.replaceChildren();
+        chapters.forEach((chapterData) => {
+          const chapterNumber = chapterData.verses[0].chapter;
+          const heading = document.createElement("h2");
+          heading.className = "torah-chapter";
+          heading.textContent = `Genesis ${chapterNumber}`;
+          torahText.append(heading);
+
+          chapterData.verses
+            .filter((verse) => chapterNumber !== 44 || verse.verse <= 17)
+            .forEach((verse) => {
+              const paragraph = document.createElement("p");
+              paragraph.className = "torah-verse";
+              if (chapterNumber === 42 && verse.verse >= 8 && verse.verse <= 23) {
+                paragraph.classList.add("highlighted");
+              }
+
+              const number = document.createElement("span");
+              number.className = "verse-number";
+              number.textContent = verse.verse;
+              paragraph.append(number, document.createTextNode(verse.text));
+              torahText.append(paragraph);
+            });
+        });
+        torahLoaded = true;
+      } catch (error) {
+        torahText.innerHTML = '<p class="torah-status">The Torah portion could not be loaded. Please check your connection and try again.</p>';
+        console.error(error);
+      }
+    }
+
     function selectSlide(button, slide) {
       document.querySelectorAll(".slide-button").forEach((item) => {
         item.classList.toggle("active", item === button);
@@ -425,9 +537,11 @@
       const selected = pageList.options[pageList.selectedIndex];
       const isService = selected.text === "Service";
       const isHomework = selected.value === "homework";
+      const isTorahPortion = selected.value === "torah-portion";
       app.classList.toggle("service-mode", isService);
-      pageFrame.hidden = isHomework;
+      pageFrame.hidden = isHomework || isTorahPortion;
       homeworkPanel.hidden = !isHomework;
+      torahPanel.hidden = !isTorahPortion;
 
       if (isService) {
         const firstSlide = document.querySelector(".slide-button");
@@ -435,6 +549,8 @@
       } else if (isHomework) {
         loadHomework();
         homeworkEditor.focus();
+      } else if (isTorahPortion) {
+        loadTorahPortion();
       } else {
         pageFrame.src = selected.value;
         pageFrame.title = selected.text;
