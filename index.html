@@ -317,7 +317,7 @@
 
       <article id="torah-panel" class="torah-panel" aria-labelledby="torah-title" hidden>
         <h1 id="torah-title">Miketz</h1>
-        <p class="torah-reference">Genesis 41:1–44:17 · King James Version</p>
+        <p class="torah-reference">Genesis 41:1–44:17 · World English Bible</p>
         <div id="torah-text" aria-live="polite">
           <p class="torah-status">Loading Torah portion…</p>
         </div>
@@ -470,7 +470,7 @@
       try {
         const chapterNumbers = [41, 42, 43, 44];
         const responses = await Promise.all(chapterNumbers.map((chapter) =>
-          fetch(`https://dailybible.ca/api/Genesis%20${chapter}?translation=kjv`)
+          fetch(`https://bible-api.com/Genesis%20${chapter}?translation=web`)
         ));
         if (responses.some((response) => !response.ok)) throw new Error("Unable to load one or more chapters");
 
