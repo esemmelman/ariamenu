@@ -155,6 +155,43 @@
       box-shadow: 0 10px 30px rgb(15 23 42 / 12%);
     }
 
+    .service-panel {
+      display: flex;
+      width: min(100%, 1200px);
+      height: calc(100vh - 40px);
+      min-height: 400px;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #000;
+      box-shadow: 0 10px 30px rgb(15 23 42 / 12%);
+    }
+    .service-panel[hidden] { display: none; }
+    .service-left-rail { flex: 0 0 22%; }
+    .service-image {
+      flex: 0 0 56%;
+      width: 56%;
+      height: 100%;
+      object-fit: contain;
+      object-position: top left;
+      background: #fff;
+    }
+    .service-rail {
+      display: grid;
+      flex: 1;
+      place-items: start center;
+      min-width: 0;
+      padding-top: 15px;
+    }
+    .service-recording {
+      width: max-content;
+      padding: 5px;
+      border-radius: 10px;
+      background: #fff8c5;
+      box-shadow: 0 4px 18px rgb(15 23 42 / 25%);
+    }
+    .service-recording[hidden] { display: none; }
+    .service-recording button { padding: 7px 12px; cursor: pointer; }
+
     .homework-panel {
       width: min(100%, 900px);
       min-height: calc(100vh - 40px);
@@ -295,6 +332,9 @@
       #page-frame {
         min-height: calc(100vh - 20px);
       }
+
+      .service-panel { height: calc(100vh - 20px); }
+      .service-recording button { padding: 6px; font-size: 0.8rem; }
     }
   </style>
 </head>
@@ -305,14 +345,14 @@
       <select id="page-list" size="8" aria-label="Choose a page">
         <option value="https://esemmelman.github.io/bmtimelinear/">Timeline</option>
         <option value="https://esemmelman.github.io/aria-torah/" selected>Torah Reading</option>
-        <option value="https://docs.google.com/presentation/d/1oC5QAqCPf49T3vI0fOJXYMrkAbRCRafq4r0UDO-VxZI/embed?slide=id.p">Service</option>
+        <option value="service">Service</option>
         <option value="https://esemmelman.github.io/Elohai-Neshama/">Elohai</option>
         <option value="torah-portion">Portion in English</option>
         <option value="https://esemmelman.github.io/ariahaftorah/">Haftorah Reading</option>
         <option value="https://us02web.zoom.us/j/85714872700?pwd=9F7xRcnY0ahMbEbv90pATiY9AHqbts.1">Zoom Link</option>
         <option value="homework">Homework</option>
       </select>
-      <p class="revision">Revision 1.02</p>
+      <p class="revision">Revision 1.03</p>
     </aside>
 
     <aside id="slide-sidebar" class="slide-sidebar" aria-label="Service slides">
@@ -328,6 +368,16 @@
         loading="eager"
         allow="camera; microphone; autoplay; fullscreen; display-capture"
       ></iframe>
+
+      <div id="service-panel" class="service-panel" hidden>
+        <div class="service-left-rail" aria-hidden="true"></div>
+        <img id="service-image" class="service-image" alt="">
+        <div class="service-rail">
+          <div id="service-recording" class="service-recording" hidden>
+            <button id="service-record-button" type="button" aria-pressed="false">Record</button>
+          </div>
+        </div>
+      </div>
 
       <article id="torah-panel" class="torah-panel" aria-labelledby="torah-title" hidden>
         <h1 id="torah-title">B'shalach</h1>
@@ -393,10 +443,20 @@
       { id: "g3e740b7777b_0_0", page: "368", title: "Torah Blessings" },
       { id: "g3f776c0633e_0_20", page: "372", title: "Haftorah Blessings" }
     ];
+    const recordableSlideIds = new Set([
+      "p", "g3eb74f277b9_0_9", "g3eb74f277b9_0_22", "g3eb74f277b9_0_32",
+      "g3eb74f277b9_0_41", "g3eb74f277b9_0_61", "g3eb74f277b9_0_69",
+      "g3eb7772bc9b_0_0", "g3eb7772bc9b_0_16", "g3eb7772bc9b_0_25",
+      "g3e705dc12d8_0_9", "g3e705dc12d8_0_18", "g3e705dc12d8_0_25",
+      "g3e705dc12d8_0_34", "g3e740b7777b_0_0", "g3f776c0633e_0_20"
+    ]);
     const app = document.querySelector(".app");
     const pageList = document.querySelector("#page-list");
     const pageFrame = document.querySelector("#page-frame");
     const slideList = document.querySelector("#slide-list");
+    const servicePanel = document.querySelector("#service-panel");
+    const serviceImage = document.querySelector("#service-image");
+    const serviceRecording = document.querySelector("#service-recording");
     const torahPanel = document.querySelector("#torah-panel");
     const torahText = document.querySelector("#torah-text");
     const homeworkPanel = document.querySelector("#homework-panel");
@@ -535,11 +595,21 @@
     }
 
     function selectSlide(button, slide) {
+      window.stopServiceRecording?.();
+      serviceRecording.hidden = true;
       document.querySelectorAll(".slide-button").forEach((item) => {
         item.classList.toggle("active", item === button);
         item.setAttribute("aria-current", item === button ? "true" : "false");
       });
-      pageFrame.src = serviceUrl(slide.id);
+      serviceImage.dataset.slideId = slide.id;
+      serviceImage.onload = () => {
+        if (pageList.value === "service" && serviceImage.dataset.slideId === slide.id) {
+          serviceRecording.hidden = !recordableSlideIds.has(slide.id);
+        }
+      };
+      serviceImage.src = `service-slides/${slide.id}.png`;
+      serviceImage.alt = `Service — ${slide.title}`;
+      window.servicePassageTitle = slide.title;
       pageFrame.title = slide.title
         ? `Service — ${slide.title}`
         : slide.page
@@ -570,11 +640,14 @@
       }
 
       selectedPageIndex = pageList.selectedIndex;
-      const isService = selected.text === "Service";
+      const isService = selected.value === "service";
       const isHomework = selected.value === "homework";
       const isTorahPortion = selected.value === "torah-portion";
       app.classList.toggle("service-mode", isService);
-      pageFrame.hidden = isHomework || isTorahPortion;
+      if (!isService) window.stopServiceRecording?.();
+      serviceRecording.hidden = true;
+      servicePanel.hidden = !isService;
+      pageFrame.hidden = isHomework || isTorahPortion || isService;
       homeworkPanel.hidden = !isHomework;
       torahPanel.hidden = !isTorahPortion;
 
@@ -592,5 +665,6 @@
       }
     });
   </script>
+  <script src="service-recordings.js?v=1.03"></script>
 </body>
 </html>
